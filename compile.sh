@@ -1,0 +1,1 @@
+gcc -o bazar main.c -lpthread
