@@ -8,10 +8,47 @@ pthread_mutex_t mutex;
 #define C_CLIENTES 5
 #define D_VOLUNTARIOS 5
 
-int roupas_venda[1];
-int roupas_reparo[1];
+typedef struct {
+  int Codigo;
+  char Modelo;
+  float Preco;
+  char Tamanho;
+} ROUPA;
+
+ROUPA roupas_venda[1];
+ROUPA roupas_reparo[1];
 
 void *cria_voluntario(void *threadid);
+
+char pegar_random_modelo(void) {
+  char arr[][10] =
+    { "Camisa",
+      "Bermuda",
+      "Calça",
+      "Casaco"
+    };
+  return arr[rand() % 4];
+}
+char pegar_random_tamanho(void) {
+  char arr[][10] =
+    { "P",
+      "M",
+      "G",
+      "GG"
+    };
+  return arr[rand() % 4];
+}
+float pegar_random_preco(void) {
+  return (rand() % 420) * 0.69;
+}
+
+ROUPA criar_random_roupa(void) {
+  ROUPA roupa;
+  roupa.Codigo = criar_random_id();
+  roupa.Modelo = pegar_random_modelo();
+  roupa.Preco = pegar_random_preco();
+  roupa.Tamanho = pegar_random_tamanho();
+}
 
 int criar_random_id(void)
 {
@@ -26,10 +63,10 @@ void *cria_voluntario(void *threadid)
   {
     // Remove roupa mais antiga da lista de roupas a venda
     int len = sizeof(roupas_venda);
-    int removendo = roupas_venda[0];
+    ROUPA removendo = roupas_venda[0];
 
     pthread_mutex_lock(&mutex);
-    roupas_venda[0] = NULL;
+    // roupas_venda[0] = NULL;
     pthread_mutex_unlock(&mutex);
 
     // reconstruir array
@@ -39,23 +76,23 @@ void *cria_voluntario(void *threadid)
   {
     // Doa roupa nova
     int len = sizeof(roupas_venda);
-    int random_id = criar_random_id();
+    ROUPA roupa_doada = criar_random_roupa();
 
     pthread_mutex_lock(&mutex);
-    roupas_venda[len] = random_id;
+    roupas_venda[len] = roupa_doada;
     pthread_mutex_unlock(&mutex);
 
-    printf("Voluntário %d doa roupa nova: %d\n", threadid, random_id);
+    printf("Voluntário %d doa roupa nova: %d\n", threadid, roupa_doada.Codigo);
   }
   else
   {
     // Move roupas da lista de reparo para a lista de roupas a venda
     int len_reparo = sizeof(roupas_reparo);
     int len_venda = sizeof(roupas_venda);
-    int movendo = roupas_reparo[len_reparo - 1];
+    ROUPA movendo = roupas_reparo[len_reparo - 1];
 
     pthread_mutex_lock(&mutex);
-    roupas_reparo[len_reparo - 1] = NULL;
+    // roupas_reparo[len_reparo - 1] = NULL;
     roupas_venda[len_venda] = movendo;
     pthread_mutex_unlock(&mutex);
 
@@ -69,46 +106,39 @@ void *cria_cliente(void *threadid)
   long tid = (long)threadid;
 
   int len_venda = sizeof(roupas_venda);
-  printf("%d\n", len_venda);
-
   int random = rand() % len_venda;
-  printf("%d\n", random);
+  if (roupas_venda[random].Codigo) {
+    ROUPA comprando = roupas_venda[random];
+    pthread_mutex_lock(&mutex);
+    // roupas_venda[random] = NULL;
+    pthread_mutex_unlock(&mutex);
 
-  int loop;
+    // reconstruir array
+    printf("Cliente %d compra roupa %d\n", threadid, comprando);
+  }
 
-  for (loop = 0; loop < len_venda; loop++)
-    printf("%d ", roupas_venda[loop]);
-
-  int comprando = roupas_venda[random];
-
-  pthread_mutex_lock(&mutex);
-  roupas_venda[random] = NULL;
-  pthread_mutex_unlock(&mutex);
-
-  // reconstruir array
-  printf("Cliente %d compra roupa %d\n", threadid, comprando);
   int random_tempo = rand() % 4;
   sleep(random_tempo);
   if (tid % 2)
   {
     // Cliente doa a peça de roupa para o bazar
     int len = sizeof(roupas_reparo);
-    int roupa_id = criar_random_id();
+    ROUPA nova_roupa = criar_random_roupa();
 
     pthread_mutex_lock(&mutex);
-    roupas_reparo[len] = roupa_id;
+    roupas_reparo[len] = nova_roupa;
     pthread_mutex_unlock(&mutex);
 
-    printf("Cliente %d doa roupa %d\n", threadid, roupa_id);
+    printf("Cliente %d doa roupa %d\n", threadid, nova_roupa.Codigo);
   }
   else
   {
     // Cliente decide comprar uma nova roupa
     int len_venda = sizeof(roupas_venda);
-    int comprando = roupas_venda[len_venda - 1];
+    ROUPA comprando = roupas_venda[len_venda - 1];
 
     pthread_mutex_lock(&mutex);
-    roupas_venda[len_venda - 1] = NULL;
+    // roupas_venda[len_venda - 1] = NULL;
     pthread_mutex_unlock(&mutex);
 
     // reconstruir array
@@ -124,6 +154,10 @@ int main(int argc, char *argv[])
   int cliente;
   int voluntario;
   long t;
+  int i;
+  for (i = 0; i < sizeof(roupas_venda);i++) {
+    printf("%d", i);
+  }
 
   pthread_mutex_init(&mutex, NULL);
   for (t = 0; t < D_VOLUNTARIOS; t++)
